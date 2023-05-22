@@ -1,10 +1,8 @@
-from dataclasses import dataclass
-from socket import socket
-from typing import Protocol, Union
+from typing import Protocol
 import psycopg2
 import os
 import dotenv
-from datetime import datetime
+from models import Client, Envelope
 
 
 # Env loading
@@ -12,24 +10,6 @@ dotenv_path = '.env'
 if os.path.exists(dotenv_path):
     dotenv.load_dotenv(dotenv_path)
 env = os.environ.get
-
-
-@dataclass
-class Client:
-    id: int
-    login: str
-    conn: Union[socket, None]
-   
-
-@dataclass
-class Envelope:
-    sender: Client
-    recevier: Client
-    date: datetime
-    message: Union[socket, None]
-     
-    def __str__(self) -> str:
-        return f'{self.sender}:{self.recevier}:{self.message}'
 
 
 class ChatStorageProtocol(Protocol):
@@ -57,7 +37,6 @@ class ChatStorageProtocol(Protocol):
     def get_envelopes(self, sender=None, recevier=None,
                          datetime_order=False, count=None) -> list:
         ...
-
 
 
 class ChatPostgresStorage(ChatStorageProtocol):
@@ -155,7 +134,7 @@ class ChatPostgresStorage(ChatStorageProtocol):
             self.cur.execute(query)
             items = self.cur.fetchall()
             for item in items:
-                members.append(Client(item[0], item[1], None))
+                members.append(Client(item[0], item[1]))
         except Exception as _ex:
             print(_ex)
         return members
@@ -165,7 +144,7 @@ class ChatPostgresStorage(ChatStorageProtocol):
             query = f'''
             INSERT INTO envelopes (sender_id, recevier_id, date, message)
             VALUES ('{envelope.sender.id}', '{envelope.recevier.id}', 
-                    '{envelope.date}', '{envelope.message}');
+                    '{envelope.date}', '{envelope.load}');
             '''
             self.cur.execute(query)
             self.conn.commit()
@@ -175,13 +154,25 @@ class ChatPostgresStorage(ChatStorageProtocol):
             return False
         return True
     
-    def get_envelopes(self, sender=None, recevier=None,
-                      datetime_order=False, count=None) -> list:
+    def get_envelopes(self, sender: Client, recevier: Client,
+                      count=None) -> list:
         envelopes = [] 
         try:
-            query = f'''
-             
-            '''
+            if count is None:
+                query = f'''
+                SELECT * FROM envelopes
+                WHERE sender_id={sender.id}
+                AND recevier_id={recevier.id}
+                ORDER BY date
+                '''
+            else:
+                query = f'''
+                SELECT * FROM envelopes
+                WHERE sender_id={sender.id}
+                AND recevier_id={recevier.id}
+                ORDER BY date
+                LIMIT {count}
+                ''' 
             self.cur.execute(query)
             items = self.cur.fetchall()
             for item in items:

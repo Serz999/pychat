@@ -1,6 +1,6 @@
 from sys import argv
-from .server import ChatServer
-from .client import  ChatClient 
+from server import ChatServer
+from client import  ChatClient 
 
 
 if __name__ == '__main__':
