@@ -62,7 +62,6 @@ class ChatServer:
         else:
             data = pickle.dumps(envelope)
             conn.send(data)
-
  
     def __commands_handle(self, conn: socket, envelope: Envelope) -> None:
         with ChatServer.std_out_lock:

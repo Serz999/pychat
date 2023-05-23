@@ -87,13 +87,9 @@ class ChatClient:
             self.send_evnelope(envelope)
      
     def __read_messages(self) -> None:
-        interp = True
         while True:
             envelope = self.recv_envelope()
-            print(envelope)
-            if interp:
-                self.__interpritate_envelope(envelope)
-                interp = False
+            self.__interpritate_envelope(envelope)
                  
     def __interpritate_envelope(self, envelope: Envelope):
         if isinstance(envelope.load, list):

@@ -112,7 +112,7 @@ class ChatPostgresStorage(ChatStorageProtocol):
         if member is None:
             return False
         return True
-
+     
     def get_members(self, login=None, count=None) -> list: 
         members = []
         try:
@@ -180,5 +180,4 @@ class ChatPostgresStorage(ChatStorageProtocol):
         except Exception as _ex:
             print(_ex)
         return envelopes
-                 
-
+ 
