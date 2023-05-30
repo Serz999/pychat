@@ -12,7 +12,7 @@ class ChatServer:
     std_out_lock = Lock()
     avail_commands = [
         '/login', '/register', '/help', '/members', 
-        '/chatwith', '/history', '/exit'
+        '/chatwith', '/exit', '/accept'
     ]
 
     def __init__(self, host, port) -> None:
@@ -42,7 +42,8 @@ class ChatServer:
             if first_word in ChatServer.avail_commands:
                 self.__commands_handle(conn, envelope)
             else:
-                conn = self.curr_connections[str(envelope.recevier)]
+                if str(envelope.recevier) in self.curr_connections:
+                    conn = self.curr_connections[str(envelope.recevier)]
                 self.send_evnelope(conn, envelope, db_record=True) 
                 with ChatServer.std_out_lock:
                     print(f'-- Send message from "{envelope.sender}" '\
@@ -77,8 +78,8 @@ class ChatServer:
             self.__get_members_handle(conn, envelope)
         elif command == '/chatwith':
             self.__chat_with_handle(conn, envelope)
-        elif command == '/history':
-            self.__get_history_handle(conn, envelope)
+        elif command == '/accept':
+            self.__accept_recv_handle(envelope)
         elif command == '/exit':
             self.__exit_handle(conn, envelope)
 
@@ -129,29 +130,30 @@ class ChatServer:
         message = str(envelope.load).split(' ')
         if len(message) < 2:
             envelope.load = 'command /chatwith req 1 arg,' \
-                            'enter /help to more informaiton'
-               
+                            'enter /help to more informaiton'            
             self.send_evnelope(conn, envelope) 
         else: 
             target_name = message[1]
             target = self.db.get_members(login=target_name)[0]
-            envelope.load = target
+            latests = self.db.get_envelopes(target, envelope.sender, is_resv=False)
+            envelope.load = (target, latests)
+            envelope.sender = target
+            self.db.accept_recv(envelope)
             self.send_evnelope(conn, envelope)
-
-    def __get_history_handle(self, conn: socket, envelope: Envelope) -> None:
-        ...
     
+    def __accept_recv_handle(self, envelope: Envelope) -> None:
+       self.db.accept_recv(envelope)
+
     def __exit_handle(self, conn: socket, envelope: Envelope) -> None:
         envelope.load = envelope.sender
         self.send_evnelope(conn, envelope)
-    
+   
     def __get_help_handle(self, conn: socket, envelope: Envelope) -> None:
         envelope.load = f''\
         '=======================HELP=INFO========================\n'\
         '-- /help - print help info\n'\
         '-- /members [all] or [membername] - print chat members\n'\
         '-- /chatwith [memgername] - connect to chat with member\n'\
-        '-- /history - print history of chat with current member\n'\
         '-- /exit - exit form chat\n'\
         '========================================================'
         self.send_evnelope(conn, envelope)

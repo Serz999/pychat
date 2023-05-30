@@ -7,7 +7,7 @@ from datetime import datetime
 @dataclass
 class Client:
     id: int
-    login: str
+    login: str 
 
     def __str__(self) -> str:
         return self.login
@@ -27,5 +27,4 @@ class Envelope:
 
     def __str__(self) -> str:
         return f'{self.sender}:{self.recevier}:{self.load}'
-
 

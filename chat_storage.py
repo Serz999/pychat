@@ -15,7 +15,7 @@ env = os.environ.get
 class ChatStorageProtocol(Protocol):
     def __init__(self) -> None:
         ...
-    
+     
     def __del__(self) -> None:
         ...
 
@@ -54,7 +54,7 @@ class ChatPostgresStorage(ChatStorageProtocol):
     def __del__(self) -> None:
         self.conn.close()
         self.cur.close()
-    
+     
     def migrate_initial_scheme(self) -> None:
         try:
             create_tables = '''
@@ -68,7 +68,8 @@ class ChatPostgresStorage(ChatStorageProtocol):
                 sender_id   int references members (id),
                 recevier_id int references members (id),
                 date        timestamp,
-                message     text
+                message     text,
+                is_recv     boolean default false
             );
             '''
             print('Migrate database ... ', end='')
@@ -125,7 +126,7 @@ class ChatPostgresStorage(ChatStorageProtocol):
             elif count is not None:
                 query = f'''
                 SELECT * FROM members 
-                LIMIT {count} 
+                LIMIT {count}
                 '''
             else:
                 query = f'''
@@ -138,7 +139,7 @@ class ChatPostgresStorage(ChatStorageProtocol):
         except Exception as _ex:
             print(_ex)
         return members
-    
+         
     def add_envelope(self, envelope: Envelope) -> bool: 
         try:
             query = f'''
@@ -154,30 +155,62 @@ class ChatPostgresStorage(ChatStorageProtocol):
             return False
         return True
     
-    def get_envelopes(self, sender: Client, recevier: Client,
-                      count=None) -> list:
-        envelopes = [] 
+    def accept_recv(self, envelope: Envelope) -> None:
         try:
-            if count is None:
-                query = f'''
-                SELECT * FROM envelopes
-                WHERE sender_id={sender.id}
-                AND recevier_id={recevier.id}
-                ORDER BY date
-                '''
+            query = f'''
+            UPDATE envelopes SET is_recv = true 
+            WHERE sender_id={envelope.sender.id}
+            AND recevier_id={envelope.recevier.id} 
+            '''
+            self.cur.execute(query)
+            self.conn.commit()
+        except Exception as _ex:
+            self.conn.rollback()
+            print(_ex)
+
+
+    def get_envelopes(self, sender: Client, recevier: Client,
+                      count=None, is_resv=True) -> list:
+        envelopes = []
+        try:
+            if is_resv:
+                if count is None:
+                    query = f'''
+                    SELECT * FROM envelopes
+                    WHERE sender_id={sender.id}
+                    AND recevier_id={recevier.id}
+                    ORDER BY date
+                    '''
+                else:
+                    query = f'''
+                    SELECT * FROM envelopes
+                    WHERE sender_id={sender.id}
+                    AND recevier_id={recevier.id}
+                    ORDER BY date
+                    LIMIT {count}
+                    '''
             else:
-                query = f'''
-                SELECT * FROM envelopes
-                WHERE sender_id={sender.id}
-                AND recevier_id={recevier.id}
-                ORDER BY date
-                LIMIT {count}
-                ''' 
+                if count is None:
+                    query = f'''
+                    SELECT * FROM envelopes
+                    WHERE sender_id={sender.id}
+                    AND recevier_id={recevier.id}
+                    AND is_recv = false
+                    ORDER BY date
+                    '''
+                else:
+                    query = f'''
+                    SELECT * FROM envelopes
+                    WHERE sender_id={sender.id}
+                    AND recevier_id={recevier.id}
+                    AND is_recv = false
+                    ORDER BY date
+                    LIMIT {count}
+                    '''
             self.cur.execute(query)
             items = self.cur.fetchall()
             for item in items:
                 envelopes.append(Envelope(item[1], item[2], item[3], item[4]))
         except Exception as _ex:
             print(_ex)
-        return envelopes
- 
+        return envelopes 
